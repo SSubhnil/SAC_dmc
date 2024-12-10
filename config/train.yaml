@@ -1,0 +1,58 @@
+defaults:
+  - _self_
+
+env: walker_run
+experiment: "my_sac_experiment"
+
+num_train_steps: 1000000
+replay_buffer_capacity: 500000
+num_seed_steps: 5000
+eval_frequency: 10000
+num_eval_episodes: 10
+
+device: cuda:0
+
+log_frequency: 1000
+log_save_tb: true
+log_save_wandb: true
+log_dir: ./logs/${experiment}
+
+save_video: true
+seed: 42
+
+# Confounder configurations
+confounder:
+  body_weights: { "torso": 5.0 }
+  friction: 1.0
+  gravity: [0.0, 0.0, -9.81]
+  external_force: null
+  cripple_part: null
+
+agent:
+  name: sac
+  params:
+    obs_dim: ???  # to be set at runtime
+    action_dim: ??? # to be set at runtime
+    action_range: ??? # to be set at runtime
+    device: ${device}
+    critic_cfg:
+      obs_dim: ??? # set at runtime
+      action_dim: ??? # set at runtime
+      hidden_dim: 256
+      hidden_depth: 2
+    actor_cfg:
+      obs_dim: ??? # set at runtime
+      action_dim: ??? # set at runtime
+      hidden_depth: 2
+      hidden_dim: 256
+      log_std_bounds: [-5, 2]
+    discount: 0.99
+    init_temperature: 0.1
+    alpha_lr: 1e-3
+    actor_lr: 1e-3
+    critic_lr: 1e-3
+    batch_size: 256
+    actor_update_frequency: 1
+    critic_tau: 0.005
+    critic_target_update_frequency: 2
+    learnable_temperature: true
