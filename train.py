@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import os
+import wandb
 import time
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import torch
-import dmc2gym
 from utils.env_wrapper import DMCConfounderWrapper
 from utils.replay_buffer import ReplayBuffer
 from logger.logger import Logger
@@ -12,6 +12,7 @@ from utils.utils import set_seed_everywhere, eval_mode
 from logger.video_recorder import VideoRecorder
 from sac.sac import SACAgent
 import numpy as np
+
 
 @hydra.main(config_path="config", config_name="train", version_base=None)
 def main(cfg: DictConfig):
@@ -46,21 +47,24 @@ def main(cfg: DictConfig):
     cfg.agent.params.actor_cfg.obs_dim = obs_dim
     cfg.agent.params.actor_cfg.action_dim = action_dim
 
-    wandb_config = None
+    # Initialize WandB
+    wandb_run = None
     if cfg.log_save_wandb:
-        wandb_config = {
-            'project': 'SAC_DMC',
-            'name': cfg.experiment,
-            'config': dict(cfg),
-            'reinit': True
-        }
+        wandb_run = wandb.init(
+            project=cfg.wandb.project,
+            entity=cfg.wandb.entity,
+            config=OmegaConf.to_container(cfg, resolve=True),
+            mode=cfg.wandb.mode,
+            sync_tensorboard=cfg.wandb.sync_tensorboard,
+            reinit=True
+        )
 
+    # Initialize Logger
     logger = Logger(cfg.log_dir,
                     save_tb=cfg.log_save_tb,
                     log_frequency=cfg.log_frequency,
                     agent=cfg.agent.name,
-                    save_wandb=cfg.log_save_wandb,
-                    wandb_config=wandb_config)
+                        wandb_run=wandb_run)
 
     agent = SACAgent(**cfg.agent.params)
 
@@ -78,6 +82,8 @@ def main(cfg: DictConfig):
     start_time = time.time()
 
     def evaluate(step):
+        # Before evaluation
+        print(f"Training Mode before eval: {agent.training}")
         avg_reward = 0.0
         for e in range(cfg.num_eval_episodes):
             obs = env.reset()
@@ -95,6 +101,10 @@ def main(cfg: DictConfig):
             avg_reward += ep_reward
             video_recorder.save(f'{step}.mp4')
         avg_reward /= cfg.num_eval_episodes
+
+        # After evaluation
+        print(f"Training Mode after eval: {agent.training}")
+
         logger.log('eval/episode_reward', avg_reward, step)
         logger.dump(step)
 
@@ -142,8 +152,14 @@ def main(cfg: DictConfig):
     logger.dump(step)
     logger.dump(step, ty='transitions')
     if cfg.log_save_wandb:
-        import wandb
         wandb.finish()
 
 if __name__ == '__main__':
     main()
+
+
+# Create a sweep using the config file:
+# wandb sweep config/sweep_config.yaml
+
+# Launch a sweep agent
+# wandb agent your_wandb_username/SAC_DMC/sweep_id

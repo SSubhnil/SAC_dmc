@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from collections import defaultdict
 import csv
 import json
+from omegaconf import OmegaConf, DictConfig  # Import OmegaConf
 from termcolor import colored
 
 COMMON_TRAIN_FORMAT = [
@@ -107,10 +108,10 @@ class MetersGroup:
         self._meters.clear()
 
 class Logger:
-    def __init__(self, log_dir, save_tb=False, log_frequency=10000, agent='sac', save_wandb=False, wandb_config=None):
+    def __init__(self, log_dir, save_tb=False, log_frequency=10000, agent='sac', wandb_run=None):
         self._log_dir = log_dir
         self._log_frequency = log_frequency
-        self._save_wandb = save_wandb
+        self._wandb_run = wandb_run
 
         if save_tb:
             tb_dir = os.path.join(log_dir, 'tb')
@@ -123,9 +124,8 @@ class Logger:
         else:
             self._sw = None
 
-        if self._save_wandb:
-            wandb.init(**(wandb_config or {}))
-
+        # each agent has specific output format for training
+        assert agent in AGENT_TRAIN_FORMAT
         train_format = COMMON_TRAIN_FORMAT + AGENT_TRAIN_FORMAT[agent]
         self._train_mg = MetersGroup(os.path.join(log_dir, 'train'), formating=train_format)
         self._eval_mg = MetersGroup(os.path.join(log_dir, 'eval'), formating=COMMON_EVAL_FORMAT)
@@ -143,7 +143,7 @@ class Logger:
             return
         if type(value) == torch.Tensor:
             value = value.item()
-        if self._save_wandb:
+        if self._wandb_run is not None:
             wandb.log({key: value}, step=step)
         self._try_sw_log(key, value / n, step)
         mg = self._train_mg if key.startswith('train') else self._eval_mg
@@ -152,6 +152,9 @@ class Logger:
     def log_transition(self, state, action, reward, next_state, done, step, confounder=None, log_frequency=1000):
         if not self._should_log(step, log_frequency):
             return
+        # Convert DictConfig to dict if necessary
+        if isinstance(confounder, DictConfig):
+            confounder = OmegaConf.to_container(confounder, resolve=True)
         data = {
             'state': json.dumps(state.tolist()),
             'action': json.dumps(action.tolist()),
@@ -161,7 +164,7 @@ class Logger:
             'confounder': json.dumps(confounder) if confounder else json.dumps({})
         }
         self._transition_mg.log_batch(data)
-        if self._save_wandb:
+        if self._wandb_run is not None:
             # Log a subset to wandb to avoid huge data
             if np.random.rand() < 0.01:
                 wandb.log({'transition': data}, step=step)

@@ -40,6 +40,8 @@ class SACAgent:
 
         self.step_count = 0
 
+
+
     def act(self, obs, sample=False):
         obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
         with torch.no_grad():
@@ -54,6 +56,10 @@ class SACAgent:
             # scale action
             action = action * ((self.action_range[1] - self.action_range[0]) / 2.0) + \
                      (self.action_range[1] + self.action_range[0]) / 2.0
+            # Ensure no NaNs or Infs
+            if not torch.isfinite(action).all():
+                print(f"Non-finite action detected: {action}")
+                action = torch.nan_to_num(action, nan=0.0, posinf=1.0, neginf=-1.0)
         return action.cpu().numpy()[0]
 
     def update(self, replay_buffer, logger, step):
@@ -61,11 +67,16 @@ class SACAgent:
             return
 
         obs, action, reward, next_obs, done, _ = replay_buffer.sample(self.batch_size)
-        obs = torch.FloatTensor(obs).to(self.device)
-        action = torch.FloatTensor(action).to(self.device)
-        reward = torch.FloatTensor(reward).to(self.device).unsqueeze(-1)
-        next_obs = torch.FloatTensor(next_obs).to(self.device)
-        done = torch.FloatTensor(done).to(self.device).unsqueeze(-1)
+
+        # Convert to torch tensors with explicit dtype and device
+        # obs = torch.tensor(obs, dtype=torch.float32, device=self.device)
+        # action = torch.tensor(action, dtype=torch.float32, device=self.device)
+        # reward = torch.tensor(reward, dtype=torch.float32, device=self.device).unsqueeze(-1)
+        # next_obs = torch.tensor(next_obs, dtype=torch.float32, device=self.device)
+        # done = torch.tensor(done, dtype=torch.float32, device=self.device).unsqueeze(-1)
+
+        reward = reward.unsqueeze(-1)
+        done = done.unsqueeze(-1)
 
         # update critic
         with torch.no_grad():
@@ -108,12 +119,17 @@ class SACAgent:
             logger.log('train/actor_loss', actor_loss.item(), step)
 
             if self.learnable_temperature:
-                alpha_loss = (alpha*( -log_prob - self.target_entropy).detach()).mean()
+                # Compute alpha without detaching
+                alpha = self.log_alpha.exp()
+                # Compute alpha_loss with log_prob and target_entropy detached
+                alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
                 self.log_alpha_optimizer.zero_grad()
                 alpha_loss.backward()
-                self.log_alpha_optimizer.step()
+                # Update alpha after optimization
+                alpha = self.log_alpha.exp()
+
                 logger.log('train/alpha_loss', alpha_loss.item(), step)
-                logger.log('train/alpha_value', alpha, step)
+                logger.log('train/alpha_value', alpha.item(), step)
 
         if step % self.critic_target_update_frequency == 0:
             with torch.no_grad():
@@ -123,3 +139,35 @@ class SACAgent:
 
     def reset(self):
         pass
+
+    def train(self, mode: bool = True):
+        """
+        Sets the training mode for the agent's components.
+
+        Args:
+            mode (bool): If True, sets to training mode. If False, sets to evaluation mode.
+        """
+        print(f"Setting training mode to {mode}")
+        self.actor.train(mode)
+        self.critic.train(mode)
+        self.critic_target.train(mode)
+        # If you have additional modules (e.g., target networks), set their modes here
+
+    @property
+    def training(self) -> bool:
+        """
+        Indicates whether the agent is in training mode.
+
+        Returns:
+            bool: True if in training mode, False otherwise.
+        """
+        current_mode = self.actor.training and self.critic.training and self.critic_target.training
+        print(f"Current training mode: {current_mode}")
+        return current_mode
+
+    def eval(self):
+        """
+        Sets the agent to evaluation mode.
+        """
+        print("Switching to evaluation mode")
+        self.train(False)
