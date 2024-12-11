@@ -147,7 +147,6 @@ class SACAgent:
         Args:
             mode (bool): If True, sets to training mode. If False, sets to evaluation mode.
         """
-        print(f"Setting training mode to {mode}")
         self.actor.train(mode)
         self.critic.train(mode)
         self.critic_target.train(mode)
@@ -162,12 +161,11 @@ class SACAgent:
             bool: True if in training mode, False otherwise.
         """
         current_mode = self.actor.training and self.critic.training and self.critic_target.training
-        print(f"Current training mode: {current_mode}")
         return current_mode
 
     def eval(self):
         """
         Sets the agent to evaluation mode.
         """
-        print("Switching to evaluation mode")
+
         self.train(False)

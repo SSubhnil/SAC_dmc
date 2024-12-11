@@ -60,6 +60,6 @@ agent:
 
 wandb:
   project: SAC_DMC  # Replace with your project name
-  entity: 576d985d69bfd39f567224809a6a3dd329326993  # Replace with your WandB username or team
-  mode: disabled  # Set to 'offline' if you prefer
+  entity: shubhamsubhnil  # Replace with your WandB username or team
+  mode: online  # Set to 'offline' if you prefer
   sync_tensorboard: true  # Sync TensorBoard logs with WandB

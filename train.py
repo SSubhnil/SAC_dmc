@@ -11,8 +11,8 @@ from logger.logger import Logger
 from utils.utils import set_seed_everywhere, eval_mode
 from logger.video_recorder import VideoRecorder
 from sac.sac import SACAgent
+from tqdm import tqdm
 import numpy as np
-
 
 @hydra.main(config_path="config", config_name="train", version_base=None)
 def main(cfg: DictConfig):
@@ -46,6 +46,9 @@ def main(cfg: DictConfig):
     cfg.agent.params.critic_cfg.action_dim = action_dim
     cfg.agent.params.actor_cfg.obs_dim = obs_dim
     cfg.agent.params.actor_cfg.action_dim = action_dim
+
+    # Initialize tqdm progress bar
+    pbar = tqdm(total=cfg.num_train_steps, desc="Training Progress", unit="step")
 
     # Initialize WandB
     wandb_run = None
@@ -83,30 +86,31 @@ def main(cfg: DictConfig):
 
     def evaluate(step):
         # Before evaluation
-        print(f"Training Mode before eval: {agent.training}")
         avg_reward = 0.0
-        for e in range(cfg.num_eval_episodes):
-            obs = env.reset()
-            agent.reset()
-            video_recorder.init(enabled=(e == 0))
-            done = False
-            ep_reward = 0
-            while not done:
-                with eval_mode(agent):
-                    action = agent.act(obs, sample=False)
-                obs, reward, terminated, truncated, _ = env.step(action)
-                done = terminated or truncated
-                video_recorder.record(env)
-                ep_reward += reward
-            avg_reward += ep_reward
-            video_recorder.save(f'{step}.mp4')
+        with tqdm(total=cfg.num_eval_episodes, desc="Evaluation", leave=False, unit="episode") as eval_pbar:
+            for e in range(cfg.num_eval_episodes):
+                obs = env.reset()
+                agent.reset()
+                video_recorder.init(enabled=(e == 0))
+                done = False
+                ep_reward = 0
+                while not done:
+                    with eval_mode(agent):
+                        action = agent.act(obs, sample=False)
+                    obs, reward, terminated, truncated, _ = env.step(action)
+                    done = terminated or truncated
+                    video_recorder.record(env)
+                    ep_reward += reward
+                avg_reward += ep_reward
+                video_recorder.save(f'{step}.mp4')
+                eval_pbar.update(1)
         avg_reward /= cfg.num_eval_episodes
-
-        # After evaluation
-        print(f"Training Mode after eval: {agent.training}")
 
         logger.log('eval/episode_reward', avg_reward, step)
         logger.dump(step)
+
+        # Update main progress bar with evaluation results
+        pbar.set_postfix({'Eval Avg Reward': f"{avg_reward:.2f}"})
 
     while step < cfg.num_train_steps:
         if done:
@@ -149,6 +153,27 @@ def main(cfg: DictConfig):
         episode_step += 1
         step += 1
 
+        # At the end of the loop iteration, update the progress bar
+        pbar.update(1)
+
+        # Optional: Display dynamic metrics at specified intervals
+        if step % cfg.log_frequency == 0 and step != 0:
+            avg_reward = logger.get_average('train/episode_reward')  # Implement this method
+            critic_loss = logger.get_average('train/critic_loss')  # Implement this method
+            actor_loss = logger.get_average('train/actor_loss')  # Implement this method
+            alpha_loss = logger.get_average('train/alpha_loss')  # Implement this method
+            alpha_value = logger.get_average('train/alpha_value')  # Implement this method
+
+            # Update the postfix with current metrics
+            pbar.set_postfix({
+                'Avg Reward': f"{avg_reward:.2f}",
+                'Critic Loss': f"{critic_loss:.4f}",
+                'Actor Loss': f"{actor_loss:.4f}",
+                'Alpha Loss': f"{alpha_loss:.4f}",
+                'Alpha Value': f"{alpha_value:.4f}"
+            })
+    # Close the progress bar after training completes
+    pbar.close()
     logger.dump(step)
     logger.dump(step, ty='transitions')
     if cfg.log_save_wandb:

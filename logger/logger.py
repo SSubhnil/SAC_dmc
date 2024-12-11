@@ -4,9 +4,10 @@ import wandb
 import torch
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
-from collections import defaultdict
+from collections import defaultdict, deque
 import csv
 import json
+
 from omegaconf import OmegaConf, DictConfig  # Import OmegaConf
 from termcolor import colored
 
@@ -124,6 +125,9 @@ class Logger:
         else:
             self._sw = None
 
+        # For rolling averages
+        self.metrics = defaultdict(lambda: deque(maxlen=100))  # Store last 100 values for each metric
+
         # each agent has specific output format for training
         assert agent in AGENT_TRAIN_FORMAT
         train_format = COMMON_TRAIN_FORMAT + AGENT_TRAIN_FORMAT[agent]
@@ -148,6 +152,11 @@ class Logger:
         self._try_sw_log(key, value / n, step)
         mg = self._train_mg if key.startswith('train') else self._eval_mg
         mg.log(key, value, n)
+
+    def get_average(self, key):
+        if key in self.metrics and len(self.metrics[key]) > 0:
+            return sum(self.metrics[key]) / len(self.metrics[key])
+        return 0.0
 
     def log_transition(self, state, action, reward, next_state, done, step, confounder=None, log_frequency=1000):
         if not self._should_log(step, log_frequency):
