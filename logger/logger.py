@@ -54,6 +54,30 @@ class AverageMeter:
     def value(self):
         return self._sum / max(1, self._count)
 
+class TransitionsGroup:
+    def __init__(self, file_name, format):
+        self._csv_file_name = self._prepare_file(file_name, 'csv')
+        self._format = format
+        self._csv_file = open(self._csv_file_name, 'w', newline='')
+        self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=[f[0] for f in self._format])
+        self._csv_writer.writeheader()
+        self._csv_file.flush()
+
+    def _prepare_file(self, prefix, suffix):
+        file_name = f'{prefix}.{suffix}'
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        return file_name
+
+    def log_batch(self, data_dict):
+        self._csv_writer.writerow(data_dict)
+        self._csv_file.flush()
+
+    def dump(self, step, prefix, save=True):
+        # Transitions are logged per batch; no need to dump
+        pass
+
+
 class MetersGroup:
     def __init__(self, file_name, formating):
         self._csv_file_name = self._prepare_file(file_name, 'csv')
@@ -69,25 +93,16 @@ class MetersGroup:
         return file_name
 
     def log(self, key, value, n=1):
+        if isinstance(value, str):
+            # Skip logging string metrics
+            return
         self._meters[key].update(value, n)
-
-    def log_batch(self, data_dict):
-        for key, value in data_dict.items():
-            # For strings or special data, just store as is
-            if isinstance(value, str):
-                self._meters[key]._sum = value
-                self._meters[key]._count = 1
-            else:
-                self.log(key, value)
 
     def _prime_meters(self):
         data = dict()
         for key, meter in self._meters.items():
             val = meter.value()
-            if isinstance(val, str):
-                data[key] = val
-            else:
-                data[key] = val
+            data[key] = val
         return data
 
     def _dump_to_csv(self, data):
@@ -100,8 +115,6 @@ class MetersGroup:
         self._csv_file.flush()
 
     def dump(self, step, prefix, save=True):
-        if len(self._meters) == 0:
-            return
         if save:
             data = self._prime_meters()
             data['step'] = step
@@ -133,29 +146,40 @@ class Logger:
         train_format = COMMON_TRAIN_FORMAT + AGENT_TRAIN_FORMAT[agent]
         self._train_mg = MetersGroup(os.path.join(log_dir, 'train'), formating=train_format)
         self._eval_mg = MetersGroup(os.path.join(log_dir, 'eval'), formating=COMMON_EVAL_FORMAT)
-        self._transition_mg = MetersGroup(os.path.join(log_dir, 'transitions'), formating=TRANSITION_FORMAT)
+        self._transitions_group = TransitionsGroup(os.path.join(log_dir, 'transitions'), TRANSITION_FORMAT)
 
     def _should_log(self, step, log_frequency):
         return step % log_frequency == 0
 
-    def _try_sw_log(self, key, value, step):
+    def _try_sw_log(self, key, value, step, category='train'):
         if self._sw is not None:
-            self._sw.add_scalar(key, value, step)
+            if category == 'train':
+                self._sw.add_scalar(f"train/{key}", value, step)
+            elif category == 'eval':
+                self._sw.add_scalar(f"eval/{key}", value, step)
 
-    def log(self, key, value, step, n=1, log_frequency=1):
+    def log(self, key, value, step, n=1, log_frequency=1, category='train'):
         if not self._should_log(step, log_frequency):
             return
-        if type(value) == torch.Tensor:
+        if isinstance(value, torch.Tensor):
             value = value.item()
         if self._wandb_run is not None:
             wandb.log({key: value}, step=step)
-        self._try_sw_log(key, value / n, step)
-        mg = self._train_mg if key.startswith('train') else self._eval_mg
+        self._try_sw_log(key, value / n, step, category=category)
+        if category == 'train':
+            mg = self._train_mg
+        elif category == 'eval':
+            mg = self._eval_mg
+        else:
+            raise ValueError(f"Unknown category: {category}")
         mg.log(key, value, n)
+        # Update rolling averages
+        self.metrics[f"{category}/{key}"].append(value)
 
-    def get_average(self, key):
-        if key in self.metrics and len(self.metrics[key]) > 0:
-            return sum(self.metrics[key]) / len(self.metrics[key])
+    def get_average(self, key, category='train'):
+        metric_key = f"{category}/{key}"
+        if metric_key in self.metrics and len(self.metrics[metric_key]) > 0:
+            return sum(self.metrics[metric_key]) / len(self.metrics[metric_key])
         return 0.0
 
     def log_transition(self, state, action, reward, next_state, done, step, confounder=None, log_frequency=1000):
@@ -172,7 +196,7 @@ class Logger:
             'done': int(done),
             'confounder': json.dumps(confounder) if confounder else json.dumps({})
         }
-        self._transition_mg.log_batch(data)
+        self._transitions_group.log_batch(data)
         if self._wandb_run is not None:
             # Log a subset to wandb to avoid huge data
             if np.random.rand() < 0.01:
@@ -182,11 +206,10 @@ class Logger:
         if ty is None:
             self._train_mg.dump(step, 'train', save)
             self._eval_mg.dump(step, 'eval', save)
-            self._transition_mg.dump(step, 'transitions', save)
+            self._transitions_group.dump(step, 'transitions', save)
         elif ty == 'eval':
             self._eval_mg.dump(step, 'eval', save)
         elif ty == 'train':
             self._train_mg.dump(step, 'train', save)
         elif ty == 'transitions':
-            self._transition_mg.dump(step, 'transitions', save)
-
+            self._transitions_group.dump(step, 'transitions', save)

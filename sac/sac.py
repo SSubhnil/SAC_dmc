@@ -98,7 +98,7 @@ class SACAgent:
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-        logger.log('train/critic_loss', critic_loss.item(), step)
+        logger.log('critic_loss', critic_loss.item(), step, category='train')
 
         if step % self.actor_update_frequency == 0:
             mu, log_std = self.actor(obs)
@@ -116,20 +116,19 @@ class SACAgent:
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             self.actor_optimizer.step()
-            logger.log('train/actor_loss', actor_loss.item(), step)
+            logger.log('actor_loss', actor_loss.item(), step, category='train')
 
             if self.learnable_temperature:
-                # Compute alpha without detaching
-                alpha = self.log_alpha.exp()
                 # Compute alpha_loss with log_prob and target_entropy detached
                 alpha_loss = -(self.log_alpha * (log_prob + self.target_entropy).detach()).mean()
                 self.log_alpha_optimizer.zero_grad()
                 alpha_loss.backward()
+                self.log_alpha_optimizer.step()
                 # Update alpha after optimization
                 alpha = self.log_alpha.exp()
 
-                logger.log('train/alpha_loss', alpha_loss.item(), step)
-                logger.log('train/alpha_value', alpha.item(), step)
+                logger.log('alpha_loss', alpha_loss.item(), step, category='train')
+                logger.log('alpha_value', alpha.item(), step, category='train')
 
         if step % self.critic_target_update_frequency == 0:
             with torch.no_grad():
