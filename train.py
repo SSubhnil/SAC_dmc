@@ -29,8 +29,7 @@ def main(cfg: DictConfig):
             domain_name=domain_name,
             task_name=task_name,
             seed=cfg.seed,
-            confounder_params=cfg.confounders[cfg.env],
-            action_masking_params=cfg.confounders[cfg.env].get('action_masking', {})
+            confounder_params=cfg.confounders.walker
         )
         return env
 
@@ -161,7 +160,7 @@ def main(cfg: DictConfig):
         replay_buffer.add(obs, action, reward, next_obs, terminated, truncated)
 
         # Log Transitions with Confounder Info
-        logger.log_transition(obs, action, reward, next_obs, done, step, confounder=cfg.confounders[cfg.env])
+        logger.log_transition(obs, action, reward, next_obs, done, step, confounder=cfg.confounders.walker)
 
         # Update Observations
         obs = next_obs

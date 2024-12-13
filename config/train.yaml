@@ -2,13 +2,13 @@ defaults:
   - _self_
 
 env: walker_run
-experiment: "sac_WALKER_RUN_weight_1.2"
+experiment: "sac_WALKER_RUN_weight-right-leg_1.2"
 
 wandb:
   project: SAC_DMC  # Replace with your project name
   entity: sssubhnil  # Replace with your WandB username or team
   group: confounded_weight
-  job_type: torso # Name of the body part being modified
+  job_type: right_leg # Name of the body part being modified
   mode: online  # Set to 'offline' if you prefer
   sync_tensorboard: true  # Sync TensorBoard logs with WandB
 
@@ -63,7 +63,7 @@ confounders:
     weight:
       scale_factor: 1.0  # Global scaling factor for weights
       body_parts:
-        torso: 1.2
+        torso: 1.0
         left_leg: 1.0
         right_leg: 1.0
     friction:
