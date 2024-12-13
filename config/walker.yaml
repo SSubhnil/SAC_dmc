@@ -1,0 +1,19 @@
+program: train.py
+
+method: grid
+metric:
+  name: eval/episode_reward
+  goal: maximize
+parameters:
+  # Confounder Parameters
+  confounders.walker.weight.body_parts.torso:
+    values: [4.5, 5.0, 5.5]
+  confounders.walker.friction:
+    values: [0.8, 1.0, 1.2]
+  confounders.walker.gravity:
+    values:
+      - [0.0, 0.0, -9.81]
+      - [0.0, 0.0, -10.0]
+      - [0.0, 0.0, -10.2]
+
+

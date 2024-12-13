@@ -16,23 +16,35 @@ from logger.video_recorder import VideoRecorder
 from sac.sac import SACAgent
 from tqdm import tqdm
 import numpy as np
+from datetime import datetime
+import uuid
 
-
+# wandb login 576d985d69bfd39f567224809a6a3dd329326993
 @hydra.main(config_path="config", config_name="train", version_base=None)
 def main(cfg: DictConfig):
     def make_env(cfg):
         domain_name = cfg.env.split('_')[0]
         task_name = '_'.join(cfg.env.split('_')[1:])
-        env = DMCConfounderWrapper(domain_name=domain_name, task_name=task_name,
-                                   seed=cfg.seed,
-                                   confounder_params=cfg.confounder)
+        env = DMCConfounderWrapper(
+            domain_name=domain_name,
+            task_name=task_name,
+            seed=cfg.seed,
+            confounder_params=cfg.confounders[cfg.env],
+            action_masking_params=cfg.confounders[cfg.env].get('action_masking', {})
+        )
         return env
 
     # Setup
     work_dir = os.getcwd()
     print(f"Workspace: {work_dir}")
-    log_dir = cfg.log_dir
-    os.makedirs(log_dir, exist_ok=True)
+
+    # Generate unique experiment name to prevent WandB run merging
+    unique_id = uuid.uuid4().hex[:8]  # 8-character unique ID
+    cfg.experiment = f"{cfg.experiment}_{unique_id}"
+
+    # Update log_dir with the new experiment name
+    cfg.log_dir = f"./logs/{cfg.experiment}"
+    os.makedirs(cfg.log_dir, exist_ok=True)
 
     set_seed_everywhere(cfg.seed)
     device = torch.device(cfg.device)
@@ -57,11 +69,14 @@ def main(cfg: DictConfig):
         try:
             wandb_run = wandb.init(
                 project=cfg.wandb.project,
-                entity=cfg.wandb.entity,
+                entity=cfg.wandb.entity,  # Ensure this is your work team name
+                name=cfg.experiment,  # Unique run name
                 config=OmegaConf.to_container(cfg, resolve=True),
+                group=cfg.wandb.group,
+                job_type=cfg.wandb.job_type,
                 mode=cfg.wandb.mode,
                 sync_tensorboard=cfg.wandb.sync_tensorboard,
-                reinit=True
+                reinit=False  # Prevent multiple runs in the same process
             )
             print("WandB initialized successfully.")
         except wandb.errors.CommError as e:
@@ -69,11 +84,13 @@ def main(cfg: DictConfig):
             wandb_run = None
 
     # Initialize Logger
-    logger = Logger(cfg.log_dir,
-                    save_tb=cfg.log_save_tb,
-                    log_frequency=cfg.log_frequency,
-                    agent=cfg.agent.name,
-                    wandb_run=wandb_run)
+    logger = Logger(
+        log_dir=cfg.log_dir,
+        save_tb=cfg.log_save_tb,
+        log_frequency=cfg.log_frequency,
+        agent=cfg.agent.name,
+        wandb_run=wandb_run
+    )
 
     # Initialize Agent and Replay Buffer
     agent = SACAgent(**cfg.agent.params)
@@ -144,7 +161,7 @@ def main(cfg: DictConfig):
         replay_buffer.add(obs, action, reward, next_obs, terminated, truncated)
 
         # Log Transitions with Confounder Info
-        logger.log_transition(obs, action, reward, next_obs, done, step, confounder=cfg.confounder)
+        logger.log_transition(obs, action, reward, next_obs, done, step, confounder=cfg.confounders[cfg.env])
 
         # Update Observations
         obs = next_obs

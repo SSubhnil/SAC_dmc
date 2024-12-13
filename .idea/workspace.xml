@@ -4,12 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a638ff66-79c5-470f-b72a-fc695fc17593" name="Changes" comment="Added vizualizer.py">
+    <list default="true" id="a638ff66-79c5-470f-b72a-fc695fc17593" name="Changes" comment="Stable version">
+      <change afterPath="$PROJECT_DIR$/config/cheetah.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/config/quadruped.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/sweep_config.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/walker.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config/train.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/config/train.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logger/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/logger/logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sac/sac.py" beforeDir="false" afterPath="$PROJECT_DIR$/sac/sac.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/env_wrapper.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/env_wrapper.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -122,13 +124,22 @@
       <option name="project" value="LOCAL" />
       <updated>1733939860091</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Stable version">
+      <option name="closed" value="true" />
+      <created>1734021052886</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1734021052886</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="First commit" />
     <MESSAGE value="Fixed errors" />
     <MESSAGE value="Added vizualizer.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added vizualizer.py" />
+    <MESSAGE value="Stable version" />
+    <option name="LAST_COMMIT_MESSAGE" value="Stable version" />
   </component>
 </project>

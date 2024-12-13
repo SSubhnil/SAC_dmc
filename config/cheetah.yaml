@@ -1,0 +1,59 @@
+method: grid
+metric:
+  name: eval/episode_reward
+  goal: maximize
+parameters:
+  # Confounder Parameters
+  confounders.cheetah.weight.body_parts.torso:
+    values: [4.5, 5.0, 5.5]
+  confounders.cheetah.friction:
+    values: [0.8, 1.0, 1.2]
+  confounders.cheetah.gravity:
+    values:
+      - [0.0, 0.0, -9.81]
+      - [0.0, 0.0, -10.0]
+      - [0.0, 0.0, -10.2]
+
+  # External Force Parameters
+  confounders.cheetah.external_force.enabled:
+    values: [false, true]
+  confounders.cheetah.external_force.force_type:
+    values: ['step', 'swelling']
+  confounders.cheetah.external_force.force_range:
+    values: [[10.0, 20.0], [15.0, 25.0]]
+  confounders.cheetah.external_force.interval_mean:
+    values: [80, 100, 120]
+  confounders.cheetah.external_force.interval_std:
+    values: [5, 10]
+  confounders.cheetah.external_force.random_chance:
+    values: [0.3, 0.5, 0.7]
+  confounders.cheetah.external_force.duration_min:
+    values: [10, 15]
+  confounders.cheetah.external_force.duration_max:
+    values: [20, 25]
+  
+  # Action Masking Parameters
+  confounders.action_masking.enabled:
+    values: [false, true]
+  confounders.action_masking.mode:
+    values: ['joint', 'leg']
+  confounders.action_masking.cripple_mode:
+    values: ['whole_leg', 'individual_joints']
+  confounders.action_masking.cripple_targets:
+    values: [['rear_leg', 'front_leg']]
+  confounders.action_masking.joints:
+    values: [['rear_knee', 'front_knee']]
+  
+  # Agent Learning Rates
+  agent.params.alpha_lr:
+    distribution: uniform
+    min: 1e-4
+    max: 1e-3
+  agent.params.actor_lr:
+    distribution: uniform
+    min: 1e-4
+    max: 1e-3
+  agent.params.critic_lr:
+    distribution: uniform
+    min: 1e-4
+    max: 1e-3

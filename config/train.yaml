@@ -2,9 +2,17 @@ defaults:
   - _self_
 
 env: walker_run
-experiment: "SAC_walker_distribution"
+experiment: "sac_WALKER_RUN_weight_1.2"
 
-num_train_steps: 1000000
+wandb:
+  project: SAC_DMC  # Replace with your project name
+  entity: sssubhnil  # Replace with your WandB username or team
+  group: confounded_weight
+  job_type: torso # Name of the body part being modified
+  mode: online  # Set to 'offline' if you prefer
+  sync_tensorboard: true  # Sync TensorBoard logs with WandB
+
+num_train_steps: 500000
 replay_buffer_capacity: 500000
 num_seed_steps: 5000
 eval_frequency: 1000
@@ -19,15 +27,6 @@ log_dir: ./logs/${experiment}
 
 save_video: true
 seed: 42
-
-
-confounder:
-  body_weights:
-    torso: 5.0
-  friction: 1.0
-  gravity: [0.0, 0.0, -9.81]
-  external_force: null
-  cripple_part: null
 
 agent:
   name: sac
@@ -52,14 +51,105 @@ agent:
     alpha_lr: 3e-4
     actor_lr: 1e-4
     critic_lr: 3e-4
-    batch_size: 256
+    batch_size: 512
     actor_update_frequency: 1
     critic_tau: 0.005
     critic_target_update_frequency: 2
     learnable_temperature: true
 
-wandb:
-  project: SAC_DMC  # Replace with your project name
-  entity: sssubhnil  # Replace with your WandB username or team
-  mode: online  # Set to 'offline' if you prefer
-  sync_tensorboard: true  # Sync TensorBoard logs with WandB
+# Confounders Configuration
+confounders:
+  walker:
+    weight:
+      scale_factor: 1.0  # Global scaling factor for weights
+      body_parts:
+        torso: 1.2
+        left_leg: 1.0
+        right_leg: 1.0
+    friction:
+      scale_factor: 1.0  # Uniform scaling for friction
+    gravity:
+      scale_factor: 1.0  # Uniform scaling for gravity
+    external_force:
+      enabled: false  # Toggle external force application
+      force_type: 'step'  # Options: 'step', 'swelling'
+      force_range: [10.0, 20.0]  # Example force range
+      interval_mean: 100  # Mean interval between forces
+      interval_std: 10  # Std deviation for force interval
+      random_chance: 0.5  # Probability to apply force
+      duration_min: 10  # Minimum duration of force application
+      duration_max: 20  # Maximum duration of force application
+      body_part: 'torso'  # Body part to apply force
+    action_masking:
+      enabled: false  # Toggle action masking
+      mode: 'joint'  # Options: 'joint', 'leg'
+      cripple_mode: 'whole_leg'  # Options: 'whole_leg', 'individual_joints'
+      cripple_targets:
+        - left_leg
+        - right_leg
+      # If cripple_mode is 'individual_joints', specify joints here
+      # joints: ['left_knee', 'right_knee']
+
+  cheetah:
+    weight:
+      scale_factor: 1.0
+      body_parts:
+        torso: 1.0
+        front_leg: 1.0
+        back_leg: 1.0
+    friction:
+      scale_factor: 1.0
+    gravity:
+      scale_factor: 1.0
+    external_force:
+      enabled: false
+      force_type: 'step'
+      force_range: [10.0, 20.0]
+      interval_mean: 100
+      interval_std: 10
+      random_chance: 0.5
+      duration_min: 10
+      duration_max: 20
+      body_part: 'torso'
+    action_masking:
+      enabled: false
+      mode: 'joint'
+      cripple_mode: 'whole_leg'
+      cripple_targets:
+        - front_leg
+        - back_leg
+
+  quadruped:
+    weight:
+      scale_factor: 1.0
+      body_parts:
+        torso: 1.0
+        front_left_leg: 1.0
+        front_right_leg: 1.0
+        rear_left_leg: 1.0
+        rear_right_leg: 1.0
+    friction:
+      scale_factor: 1.0
+    gravity:
+      scale_factor: 1.0
+    external_force:
+      enabled: false
+      force_type: 'step'
+      force_range: [10.0, 20.0]
+      interval_mean: 100
+      interval_std: 10
+      random_chance: 0.5
+      duration_min: 10
+      duration_max: 20
+      body_part: 'torso'
+    action_masking:
+      enabled: false
+      mode: 'joint'
+      cripple_mode: 'whole_leg'
+      cripple_targets:
+        - front_left_leg
+        - front_right_leg
+        - rear_left_leg
+        - rear_right_leg
+
+
