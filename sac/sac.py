@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-from sac.actor import DiagGaussianActor
+from sac.actor import DiagGaussianActor, MixtureOfExpertsActor
 from sac.critic import DoubleQCritic
 
 class SACAgent:
@@ -21,7 +21,8 @@ class SACAgent:
         self.learnable_temperature = learnable_temperature
 
         # actor
-        self.actor = DiagGaussianActor(**actor_cfg).to(device)
+        # self.actor = DiagGaussianActor(**actor_cfg).to(device)
+        self.actor = MixtureOfExpertsActor(**actor_cfg).to(device)
 
         # critic
         self.critic = DoubleQCritic(**critic_cfg).to(device)

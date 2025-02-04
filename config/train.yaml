@@ -2,12 +2,12 @@ defaults:
   - _self_
 
 env: walker_run
-experiment: "sac_WALKER_RUN_weight-right-leg_1.2"
+experiment: "sac_WALKER_RUN_cripple-right-leg"
 
 wandb:
   project: SAC_DMC  # Replace with your project name
   entity: sssubhnil  # Replace with your WandB username or team
-  group: confounded_weight
+  group: confounded_cripple
   job_type: right_leg # Name of the body part being modified
   mode: online  # Set to 'offline' if you prefer
   sync_tensorboard: true  # Sync TensorBoard logs with WandB
@@ -81,11 +81,10 @@ confounders:
       duration_max: 20  # Maximum duration of force application
       body_part: 'torso'  # Body part to apply force
     action_masking:
-      enabled: false  # Toggle action masking
-      mode: 'joint'  # Options: 'joint', 'leg'
+      enabled: true  # Toggle action masking
+      mode: 'leg'  # Options: 'joint', 'leg'
       cripple_mode: 'whole_leg'  # Options: 'whole_leg', 'individual_joints'
       cripple_targets:
-        - left_leg
         - right_leg
       # If cripple_mode is 'individual_joints', specify joints here
       # joints: ['left_knee', 'right_knee']
